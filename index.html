@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>タスク管理アプリ</title>
+<link rel="stylesheet" href="./stylesheet.css">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+</head>
+<body>
+    <div class="container">
+        <h1>タスク管理アプリ</h1>
+        <form id="taskForm" class="task-form">
+            <div class="form-row">
+                <label for="taskName">タスク名<span class="required">*</span></label>
+                <input type="text" id="taskName" placeholder="タスク名" required>
+            </div>
+            <div class="form-row">
+                <label for="priority">優先度</label>
+                <select id="priority">
+                    <option value="高">高</option>
+                    <option value="中">中</option>
+                    <option value="低">低</option>
+                </select>
+                <label for="dueDate">期日<span class="required">*</span></label>
+                <input type="date" id="dueDate" required>
+                <label for="assignee">担当者名<span class="required">*</span></label>
+                <input type="text" id="assignee" placeholder="担当者名" required>
+            </div>
+            <textarea id="details" placeholder="詳細"></textarea>
+            <button type="submit" class="add-btn">タスク追加</button>
+        </form>
+        <ul id="taskList" class="task-list"></ul>
+        <select id="sortOption">
+            <option value="">ソート選択...</option>
+            <option value="dueDate">期日でソート</option>
+            <option value="priority">優先度でソート</option>
+        </select>
+        <button id="sortTasks">入替</button>
+        <button id="clearTasks">タスク初期化</button>
+    </div>
+
+<script>
+ $(document).ready(function() {
+    loadTasks();
+
+    $('#taskForm').submit(function(event) {
+        event.preventDefault();
+        addTask();
+    });
+
+    $('#clearTasks').on('click', function() {
+        localStorage.clear(); // LocalStorageのデータをクリア
+        $('#taskList').empty(); // 現在のタスクリストを空にする
+    });
+
+});
+
+function addTask() {
+    let task = {
+        id: Date.now(),
+        name: $('#taskName').val(),
+        priority: $('#priority').val(),
+        dueDate: $('#dueDate').val(),
+        details: $('#details').val(),
+        assignee: $('#assignee').val(),
+        completed: false
+    };
+
+    let tasks = getTasks();
+    tasks.push(task);
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+    renderTask(task);
+    $('#taskForm')[0].reset();
+}
+
+function loadTasks() {
+    let tasks = getTasks();
+    tasks.forEach(task => renderTask(task));
+}
+
+function renderTask(task) {
+    let list = $('#taskList');
+    let listItem = $('<li>').attr('data-id', task.id);
+    listItem.html(`
+        <input type="checkbox" ${task.completed ? 'checked' : ''} class="toggle-status">
+        <span>${task.name} - 優先度: ${task.priority} - 期日: ${task.dueDate} - 担当者: ${task.assignee}</span>
+        <button class="delete-task">削除</button>
+        <p>${task.details}</p>
+    `);
+    if (task.completed) {
+        listItem.addClass('completed');
+    }
+    list.append(listItem);
+}
+
+$(document).on('change', '.toggle-status', function() {
+    let listItem = $(this).closest('li');
+    let taskId = listItem.data('id');
+    toggleTaskStatus(taskId, $(this).is(':checked'));
+    listItem.toggleClass('completed');
+});
+
+$(document).on('click', '.delete-task', function() {
+    let listItem = $(this).closest('li');
+    let taskId = listItem.data('id');
+    deleteTask(taskId);
+    listItem.remove();
+});
+
+function toggleTaskStatus(taskId, completed) {
+    let tasks = getTasks();
+    let task = tasks.find(t => t.id === taskId);
+    if (task) {
+        task.completed = completed;
+        localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+}
+
+function deleteTask(taskId) {
+    let tasks = getTasks();
+    tasks = tasks.filter(t => t.id !== taskId);
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+}
+
+function getTasks() {
+    let tasks = localStorage.getItem('tasks');
+    return tasks ? JSON.parse(tasks) : [];
+}
+
+$(document).ready(function() {
+    $('#sortTasks').click(function() {
+        let selectedOption = $('#sortOption').val();
+        let tasks = getTasks();
+        
+        if (selectedOption === 'dueDate') {
+            // 期日でソート
+            tasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+        } else if (selectedOption === 'priority') {
+            // 優先度でソート（優先度が高い順）
+            tasks.sort((a, b) => {
+                let priorities = {'高': 3, '中': 2, '低': 1};
+                return priorities[b.priority] - priorities[a.priority];
+            });
+        }
+
+        updateTaskList(tasks);
+    });
+});
+
+function updateTaskList(tasks) {
+    let $list = $('#taskList');
+    $list.empty(); // 既存のリストをクリア
+    $.each(tasks, function(index, task) {
+        renderTask(task); // ソートされたタスクでリストを再生成
+    });
+}
+
+
+</script>
+</body>
+</html>
